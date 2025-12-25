@@ -1,5 +1,10 @@
 # PolyMarket Trading Bot - Overview
 
+> **Inspired by:** [Programmers on Twitter quietly pulling in 10k to 100k per month on Prediction markets](https://www.reddit.com/r/PolyKal/comments/1pvajkf/programmers_on_twitter_quietly_pulling_in_10k_to/)  
+> *A Reddit post discussing how programmers are making serious money on PolyMarket and Kalshi through systematic trading algorithms.*
+
+---
+
 ## What Are Prediction Markets?
 
 Prediction markets are platforms where people can bet on the outcomes of future events - elections, sports, crypto prices, world events, and more. The market price represents the collective probability that participants assign to each outcome.
@@ -258,6 +263,16 @@ And that's exactly why the opportunity exists.
 **Ready to dive deeper?** Choose a strategy from the list above and start building.
 
 **Start here:** [Strategy 1: Arbitrage](./strategy_1_arbitrage.md) - The lowest risk, clearest edge.
+
+---
+
+## Credits & Inspiration
+
+This project was inspired by a Reddit post in r/PolyKal discussing how programmers are quietly making $10k-$100k+ per month on prediction markets through systematic trading strategies.
+
+**Original Post:** [Programmers on Twitter quietly pulling in 10k to 100k per month on Prediction markets](https://www.reddit.com/r/PolyKal/comments/1pvajkf/programmers_on_twitter_quietly_pulling_in_10k_to/)
+
+The strategies documented here represent systematic approaches that traders are actively using to generate consistent returns on PolyMarket, Kalshi, and other prediction market platforms.
 
 ---
 
