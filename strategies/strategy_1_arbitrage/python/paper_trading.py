@@ -4,10 +4,18 @@ Simulates trades without actually executing them on PolyMarket
 Perfect for testing strategies before deploying with real money
 """
 import logging
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 from datetime import datetime
 import json
 import os
+import sys
+
+# Add shared modules to path for real API access
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.abspath(os.path.join(current_dir, '..', '..', '..'))
+shared_python_path = os.path.join(project_root, 'shared', 'python')
+if os.path.exists(shared_python_path) and shared_python_path not in sys.path:
+    sys.path.insert(0, shared_python_path)
 
 logger = logging.getLogger(__name__)
 
@@ -31,29 +39,57 @@ class PaperTradingClient:
         self.trades = []
         self.markets = {}
         
+        # Initialize real API client for market data (read-only)
+        # This allows us to get real market data but simulate trades
+        try:
+            from polymarket_client import PolyMarketClient
+            self.real_client = PolyMarketClient()
+            logger.info("Real API client initialized for market data (read-only)")
+        except Exception as e:
+            logger.warning(f"Could not initialize real API client: {e}")
+            logger.warning("Paper trading will use mock data only")
+            self.real_client = None
+        
         logger.info(f"Paper trading initialized with ${initial_balance:,.2f}")
     
-    def get_markets(self, active: bool = True) -> list:
+    def get_markets(self, active: bool = True) -> List[Dict]:
         """
-        Get markets (in paper trading, returns mock data)
-        
-        In real testing, you'd load historical market data
+        Get markets from real API (read-only)
+        In paper trading, we fetch real market data but simulate trades
         """
-        # For paper trading, you can:
-        # 1. Load historical market data
-        # 2. Use mock markets
-        # 3. Connect to real API but don't execute
-        
-        # Placeholder - returns empty list
-        # In practice, load from historical data or use real API read-only
-        return []
+        if self.real_client:
+            try:
+                # Fetch real markets from API
+                markets = self.real_client.get_markets(active=active)
+                logger.debug(f"Fetched {len(markets)} markets from real API (paper trading mode)")
+                return markets
+            except Exception as e:
+                logger.error(f"Error fetching markets from real API: {e}")
+                return []
+        else:
+            logger.warning("No real API client available, returning empty market list")
+            return []
     
     def get_market(self, market_id: str) -> Optional[Dict]:
-        """Get market data (mock)"""
+        """Get market data from real API (read-only)"""
+        if self.real_client:
+            try:
+                return self.real_client.get_market(market_id)
+            except Exception as e:
+                logger.error(f"Error fetching market {market_id}: {e}")
+                return None
         return self.markets.get(market_id)
     
     def get_market_prices(self, market_id: str) -> Optional[Dict]:
-        """Get current prices (mock)"""
+        """Get current prices from real API (read-only)"""
+        if self.real_client:
+            try:
+                return self.real_client.get_market_prices(market_id)
+            except Exception as e:
+                logger.error(f"Error fetching prices for {market_id}: {e}")
+                return None
+        
+        # Fallback to mock if no real client
         market = self.get_market(market_id)
         if market:
             return {
