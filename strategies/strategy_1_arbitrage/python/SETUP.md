@@ -12,7 +12,7 @@
 
 ```bash
 cd strategies/strategy_1_arbitrage/python
-pip install -r requirements.txt
+pip3 install -r requirements.txt
 ```
 
 ### 2. Get API Keys
@@ -52,7 +52,7 @@ LOG_LEVEL=INFO
 Before running the bot, test your API connection:
 
 ```bash
-python test_connection.py
+python3 test_connection.py
 ```
 
 You should see:
@@ -67,7 +67,7 @@ You should see:
 ### 5. Run the Bot
 
 ```bash
-python bot.py
+python3 bot.py
 ```
 
 The bot will:
@@ -113,7 +113,7 @@ Before using real money:
 
 **"ModuleNotFoundError: No module named 'py_clob_client'"**
 ```bash
-pip install py-clob-client
+pip3 install py-clob-client
 ```
 
 **"API credentials not found"**

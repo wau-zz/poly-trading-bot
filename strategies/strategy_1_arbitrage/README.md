@@ -16,7 +16,7 @@ This strategy exploits momentary pricing errors where both outcomes of a binary 
 
 ```bash
 cd strategies/strategy_1_arbitrage/python
-pip install -r requirements.txt
+pip3 install -r requirements.txt
 ```
 
 ### 2. Configure Environment
@@ -42,7 +42,7 @@ LOG_FILE=logs/arbitrage_bot.log
 ### 3. Run the Bot
 
 ```bash
-python bot.py
+python3 bot.py
 ```
 
 ## How It Works
