@@ -21,6 +21,13 @@ from utils import setup_logging, format_currency, format_percentage
 from detector import ArbitrageDetector
 from executor import ArbitrageExecutor
 
+# Paper trading import (optional - only if paper_trading.py exists)
+try:
+    from paper_trading import PaperTradingClient
+    PAPER_TRADING_AVAILABLE = True
+except ImportError:
+    PAPER_TRADING_AVAILABLE = False
+
 # Load environment variables
 load_dotenv()
 
@@ -36,9 +43,15 @@ logger = logging.getLogger(__name__)
 class ArbitrageBot:
     """Main arbitrage trading bot"""
     
-    def __init__(self):
-        """Initialize the arbitrage bot"""
+    def __init__(self, paper_trading: bool = False):
+        """
+        Initialize the arbitrage bot
+        
+        Args:
+            paper_trading: If True, use paper trading mode (no real trades)
+        """
         self.running = True
+        self.paper_trading = paper_trading or os.getenv("PAPER_TRADING", "false").lower() == "true"
         self.client = None
         self.detector = None
         self.executor = None
@@ -52,16 +65,30 @@ class ArbitrageBot:
             'opportunities_found': 0,
             'trades_executed': 0,
             'total_profit': 0.0,
-            'start_time': datetime.now()
+            'start_time': datetime.now(),
+            'paper_trading': self.paper_trading
         }
     
     def initialize(self):
         """Initialize API client and components"""
         try:
-            logger.info("Initializing PolyMarket Arbitrage Bot...")
-            
-            # Initialize client
-            self.client = PolyMarketClient()
+            if self.paper_trading:
+                if not PAPER_TRADING_AVAILABLE:
+                    raise ImportError("Paper trading module not available. Make sure paper_trading.py exists.")
+                
+                logger.info("=" * 60)
+                logger.info("🧪 PAPER TRADING MODE - No real trades will be executed")
+                logger.info("=" * 60)
+                
+                # Use paper trading client
+                initial_balance = float(os.getenv("PAPER_TRADING_BALANCE", "10000.0"))
+                self.client = PaperTradingClient(initial_balance=initial_balance)
+            else:
+                logger.info("Initializing PolyMarket Arbitrage Bot (LIVE TRADING)...")
+                logger.warning("⚠️  REAL MONEY MODE - Trades will be executed on PolyMarket!")
+                
+                # Use real client
+                self.client = PolyMarketClient()
             
             # Initialize detector
             self.detector = ArbitrageDetector(
@@ -79,7 +106,7 @@ class ArbitrageBot:
             balance = self.client.get_balance()
             logger.info(f"Available balance: {format_currency(balance)}")
             
-            if balance < 100:
+            if not self.paper_trading and balance < 100:
                 logger.warning("Low balance! Minimum $100 recommended for trading.")
             
             logger.info("Bot initialized successfully")
@@ -120,7 +147,11 @@ class ArbitrageBot:
                     if result:
                         self.stats['trades_executed'] += 1
                         self.stats['total_profit'] += result['expected_profit']
-                        logger.info(f"✅ Trade executed! Expected profit: {format_currency(result['expected_profit'])}")
+                        
+                        if self.paper_trading:
+                            logger.info(f"📝 PAPER TRADE executed! Expected profit: {format_currency(result['expected_profit'])}")
+                        else:
+                            logger.info(f"✅ LIVE TRADE executed! Expected profit: {format_currency(result['expected_profit'])}")
                 
                 # Log stats periodically
                 if self.stats['scans'] % 100 == 0:
@@ -141,13 +172,23 @@ class ArbitrageBot:
     def log_stats(self):
         """Log current statistics"""
         runtime = datetime.now() - self.stats['start_time']
+        mode = "🧪 PAPER TRADING" if self.paper_trading else "💰 LIVE TRADING"
+        
         logger.info("=" * 50)
-        logger.info("Bot Statistics:")
+        logger.info(f"Bot Statistics ({mode}):")
         logger.info(f"  Runtime: {runtime}")
         logger.info(f"  Scans: {self.stats['scans']}")
         logger.info(f"  Opportunities found: {self.stats['opportunities_found']}")
         logger.info(f"  Trades executed: {self.stats['trades_executed']}")
         logger.info(f"  Total expected profit: {format_currency(self.stats['total_profit'])}")
+        
+        if self.paper_trading and hasattr(self.client, 'get_statistics'):
+            stats = self.client.get_statistics()
+            logger.info(f"  Current balance: {format_currency(stats['current_balance'])}")
+            logger.info(f"  Completed trades: {stats['completed_trades']}")
+            if stats['total_invested'] > 0:
+                logger.info(f"  ROI: {stats['roi']:.2f}%")
+        
         logger.info("=" * 50)
     
     def shutdown(self, signum=None, frame=None):
@@ -171,7 +212,19 @@ class ArbitrageBot:
 
 def main():
     """Entry point"""
-    bot = ArbitrageBot()
+    # Check for paper trading mode
+    paper_trading = os.getenv("PAPER_TRADING", "false").lower() == "true"
+    
+    if paper_trading:
+        logger.info("Starting bot in PAPER TRADING mode")
+    else:
+        logger.warning("Starting bot in LIVE TRADING mode - real money at risk!")
+        response = input("Continue with live trading? (yes/no): ")
+        if response.lower() != 'yes':
+            logger.info("Aborted by user")
+            sys.exit(0)
+    
+    bot = ArbitrageBot(paper_trading=paper_trading)
     
     try:
         asyncio.run(bot.run())
