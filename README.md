@@ -10,6 +10,7 @@ Systematic trading strategies for prediction markets (PolyMarket, Kalshi) that e
 
 - **[Overview](./docs/OVERVIEW.md)** - Introduction to prediction market trading
 - **[Project Structure](./PROJECT_STRUCTURE.md)** - Repository organization guide
+- **[Deployment Guide](./docs/DEPLOYMENT.md)** - How to deploy to EC2, Docker, ECS, etc.
 
 ### Strategies
 
