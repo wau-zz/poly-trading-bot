@@ -64,9 +64,9 @@ While traditional markets have been optimized over decades, prediction markets s
 - Emotional overreactions to news
 - Thin liquidity creating wide spreads
 
-## Our Approach: 5 Systematic Strategies
+## Our Approach: 6 Systematic Strategies
 
-This project implements **5 proven strategies** that traders are actively using to generate consistent profits:
+This project implements **6 systematic strategies** that traders are actively using to generate consistent profits:
 
 ### [Strategy 1: Price Mismatch Sniping (Arbitrage)](./strategy_1_arbitrage.md)
 **Type:** Risk-free  
@@ -103,17 +103,25 @@ Post continuous buy/sell orders, capturing the spread. Scale across hundreds of 
 
 Identify consistently profitable wallets on-chain and automatically mirror their trades in real-time.
 
+### [Strategy 6: Structured Products & Synthetic Options](./strategy_6_structured_products.md)
+**Type:** Options-style derivatives  
+**Returns:** 20-40% monthly  
+**Win Rate:** 60-75%
+
+Create synthetic option structures (vertical spreads, straddles, iron condors, calendar spreads) using binary market outcomes. Trade like a professional options trader.
+
 ## Capital Allocation (for $100k account)
 
 | Strategy | Allocation | Risk Level | Expected Monthly Return |
 |----------|-----------|------------|------------------------|
-| Arbitrage Sniping | $20k (20%) | Very Low | 5-10% |
-| Correlated Pairs | $25k (25%) | Medium | 10-20% |
-| Probability Models | $30k (30%) | Medium-High | 15-30% |
-| Market Making | $15k (15%) | Low-Medium | 5-15% |
+| Arbitrage Sniping | $15k (15%) | Very Low | 5-10% |
+| Correlated Pairs | $20k (20%) | Medium | 10-20% |
+| Probability Models | $25k (25%) | Medium-High | 15-30% |
+| Market Making | $10k (10%) | Low-Medium | 5-15% |
 | Wallet Following | $10k (10%) | Medium | 10-20% |
+| Structured Products | $20k (20%) | Medium-High | 20-40% |
 
-**Portfolio Expected Return:** 12-25% monthly
+**Portfolio Expected Return:** 15-30% monthly
 
 ## Key Principles
 

@@ -567,10 +567,10 @@ async def monitor_copied_position(position):
 
 ---
 
-**[← Previous: Market Making](./strategy_4_market_making.md)** | **[Back to Overview](./OVERVIEW.md)**
+**[← Previous: Market Making](./strategy_4_market_making.md)** | **[Next: Structured Products →](./strategy_6_structured_products.md)**
 
 ---
 
-*This is Strategy 5 of 5 in the PolyMarket Trading Bot series*  
+*This is Strategy 5 of 6 in the PolyMarket Trading Bot series*  
 *Last Updated: December 25, 2025*
 
