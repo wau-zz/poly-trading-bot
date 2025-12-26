@@ -1,7 +1,7 @@
 # Strategy 1: Arbitrage Bot Dependencies
 
 # PolyMarket API
-py-clob-client>=1.0.0
+py-clob-client>=0.34.0
 
 # HTTP requests (for market data)
 requests>=2.31.0
