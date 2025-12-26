@@ -152,10 +152,44 @@ class PolyMarketClient:
                         
                         # Market is tradeable if not archived, not expired, and (accepting orders or active)
                         if not is_archived and not is_expired and (accepting_orders or is_active):
-                            filtered.append(m)
+                            # Additional validation: verify condition_id format
+                            condition_id = m.get('condition_id')
+                            if condition_id and condition_id.startswith('0x') and len(condition_id) == 66:
+                                filtered.append(m)
+                            else:
+                                logger.debug(f"Skipping market with invalid condition_id: {condition_id}")
                 
-                markets = filtered
-                logger.debug(f"Filtered to {len(markets)} active, non-expired tradeable markets")
+                # Validate order books to ensure markets are actually tradeable
+                # This filters out stale markets that the API returns but are no longer valid
+                validated_markets = []
+                validate_order_books = os.getenv("VALIDATE_ORDER_BOOKS", "true").lower() == "true"
+                
+                if validate_order_books and filtered:
+                    logger.debug(f"Validating order books for {len(filtered)} markets...")
+                    for m in filtered:
+                        condition_id = m.get('condition_id')
+                        if condition_id:
+                            try:
+                                # Quick check: verify order book exists
+                                book_url = f'https://clob.polymarket.com/book?token_id={condition_id}'
+                                book_response = requests.get(book_url, timeout=3)
+                                if book_response.status_code == 200:
+                                    validated_markets.append(m)
+                                else:
+                                    logger.debug(f"Market {condition_id[:20]}... has no order book (invalid/expired)")
+                            except Exception as e:
+                                # If validation fails, include it anyway (might be network issue)
+                                logger.debug(f"Could not validate order book for {condition_id[:20]}...: {e}")
+                                validated_markets.append(m)
+                        else:
+                            validated_markets.append(m)
+                    
+                    markets = validated_markets
+                    logger.debug(f"Validated: {len(markets)} markets have valid order books")
+                else:
+                    markets = filtered
+                
+                logger.debug(f"Final count: {len(markets)} active, non-expired, validated tradeable markets")
             
             return markets
         except Exception as e:
