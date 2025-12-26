@@ -8,6 +8,7 @@ Check the official documentation: https://github.com/Polymarket/py-clob-client
 import os
 from typing import Dict, List, Optional
 from py_clob_client.client import ClobClient
+from py_clob_client.clob_types import ApiCreds
 from py_clob_client.constants import POLYGON
 import logging
 import requests
@@ -30,12 +31,18 @@ class PolyMarketClient:
                 "API credentials must be set. Use POLYMARKET_API_KEY/POLYMARKET_API_SECRET or apiKey/secret"
             )
         
+        # Create ApiCreds object
+        creds = ApiCreds(
+            api_key=api_key,
+            api_secret=api_secret,
+            api_passphrase=passphrase if passphrase else ""
+        )
+        
+        # Initialize ClobClient
         self.client = ClobClient(
             host=os.getenv("POLYMARKET_HOST", "https://clob.polymarket.com"),
-            key=api_key,
-            secret=api_secret,
-            passphrase=passphrase if passphrase else None,
-            chain_id=int(os.getenv("POLYMARKET_CHAIN_ID", POLYGON))
+            chain_id=int(os.getenv("POLYMARKET_CHAIN_ID", POLYGON)),
+            creds=creds
         )
         
         logger.info("PolyMarket client initialized")
@@ -69,10 +76,19 @@ class PolyMarketClient:
             import requests
             response = requests.get('https://clob.polymarket.com/markets')
             if response.status_code == 200:
-                markets = response.json()
+                data = response.json()
+                # Handle different response formats
+                if isinstance(data, list):
+                    markets = data
+                elif isinstance(data, dict):
+                    # If it's a dict, try common keys
+                    markets = data.get('markets', data.get('data', []))
+                else:
+                    markets = []
             
-            if active:
-                markets = [m for m in markets if m.get('active', True)]
+            # Filter active markets if requested
+            if active and markets:
+                markets = [m for m in markets if isinstance(m, dict) and m.get('active', True)]
             
             return markets
         except Exception as e:

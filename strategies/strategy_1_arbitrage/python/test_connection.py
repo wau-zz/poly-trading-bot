@@ -8,9 +8,16 @@ import sys
 from dotenv import load_dotenv
 
 # Add shared modules to path
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../../..', 'shared', 'python'))
+# Get project root (3 levels up from this file: python -> strategy_1_arbitrage -> strategies -> root)
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.abspath(os.path.join(current_dir, '..', '..', '..'))
+shared_python_path = os.path.join(project_root, 'shared', 'python')
+if os.path.exists(shared_python_path) and shared_python_path not in sys.path:
+    sys.path.insert(0, shared_python_path)
 
-load_dotenv()
+# Load .env from project root
+env_path = os.path.join(project_root, '.env')
+load_dotenv(dotenv_path=env_path)
 
 def test_connection():
     """Test PolyMarket API connection"""
