@@ -79,8 +79,8 @@ See [PROJECT_STRUCTURE.md](./PROJECT_STRUCTURE.md) for detailed structure.
 
 ## 🎯 Strategies Overview
 
-| Strategy | Returns | Win Rate | Difficulty |
-|----------|---------|----------|------------|
+| Strategy | Monthly Returns | Win Rate | Difficulty |
+|----------|----------------|----------|------------|
 | Arbitrage | 5-10% | 95%+ | Beginner |
 | Pairs Trading | 10-20% | 60-70% | Intermediate |
 | Probability Models | 15-30% | 65-75% | Advanced |
@@ -90,6 +90,8 @@ See [PROJECT_STRUCTURE.md](./PROJECT_STRUCTURE.md) for detailed structure.
 | Cross-Market Arbitrage | 25-50% | 70-80% | Expert |
 
 **Portfolio Expected Return:** 18-35% monthly (with proper capital allocation)
+
+> **Note:** Returns are monthly percentages based on allocated capital. Actual results may vary. Start small, validate strategies, then scale gradually.
 
 ---
 
