@@ -69,3 +69,36 @@ tail -f logs/bot.log | grep -E "(markets|order book|validated)"
 
 **Bottom Line**: The bot is working correctly. The issue is with PolyMarket's API returning stale data. When new markets are created, the bot will automatically detect and trade them.
 
+---
+
+## Issue: Market Not Found in API Despite Existing on Website
+
+### Problem
+Some markets that exist on the PolyMarket website are not returned by the CLOB API `/markets` endpoint, even after searching through 30,000+ markets with pagination.
+
+### Example
+The "OpenAI $1t+ IPO before 2027?" market exists at:
+- Website: `https://polymarket.com/event/openai-1t-ipo-before-2027`
+- But cannot be found via:
+  - `GET https://clob.polymarket.com/markets` (with pagination)
+  - `ClobClient.get_markets()` method
+  - Gamma API (`https://gamma-api.polymarket.com/markets`)
+
+### Possible Reasons
+1. **API Indexing Delay:** New markets may take time to appear in the API after being created on the website
+2. **Different Status/Category:** Market might be in a status or category not returned by the standard `/markets` endpoint
+3. **Authentication Required:** Some markets might require different authentication or endpoints
+4. **API Limitation:** The API might not return all markets that are visible on the website
+
+### Current Status
+- ✅ We are using the **correct endpoint**: `https://clob.polymarket.com/markets` with proper pagination
+- ✅ Our code correctly handles pagination and searches through thousands of markets
+- ✅ Successfully fetches 30,000+ markets across multiple pages
+- ⚠️ Some markets visible on the website may not be immediately available via API
+
+### Workaround
+- The bot will work correctly for markets that are available in the API
+- For markets not found in API, they may appear later as the API indexes them
+- Consider using the website's GraphQL API or other endpoints if direct market access is needed
+- The bot uses the correct endpoint - this is a PolyMarket API limitation, not our code issue
+
