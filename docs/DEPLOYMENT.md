@@ -1,6 +1,6 @@
 # Deployment Guide
 
-This guide covers different deployment options for your PolyMarket trading bot, from simple EC2 instances to advanced container orchestration.
+This guide covers different deployment options for your PolyMarket trading bot, from simple VPS instances to advanced container orchestration.
 
 ---
 
@@ -8,15 +8,202 @@ This guide covers different deployment options for your PolyMarket trading bot, 
 
 | Method | Complexity | Best For | Cost |
 |--------|-----------|----------|------|
-| **Direct EC2** | Low | Getting started, single bot | $6-20/mo |
-| **Docker on EC2** | Medium | Multiple bots, easy updates | $6-20/mo |
-| **ECS (Fargate)** | Medium | Serverless containers | $10-30/mo |
+| **🏆 Digital Ocean Droplet** | Low | **Best for beginners** | $6-12/mo |
+| **Direct EC2** | Low | AWS ecosystem, getting started | $6-20/mo |
+| **Docker on VPS** | Medium | Multiple bots, easy updates | $6-12/mo |
+| **ECS (Fargate)** | Medium | Serverless containers (AWS) | $10-30/mo |
 | **EKS (Kubernetes)** | High | Large scale, multiple strategies | $50+/mo |
 | **Lambda/Serverless** | Medium | Event-driven, low traffic | $0-10/mo |
 
 ---
 
-## Option 1: Direct EC2 Deployment (Simplest)
+## 🏆 Recommended: Digital Ocean (Best for Most Traders)
+
+### **Why Digital Ocean Over EC2?**
+
+**Digital Ocean Advantages:**
+- ✅ **Simpler interface** - Much easier for beginners
+- ✅ **Better documentation** - More beginner-friendly
+- ✅ **Predictable pricing** - No surprise charges
+- ✅ **Cheaper** - $6/month for basic droplet vs $6-12 for EC2
+- ✅ **Faster setup** - Can be running in 5 minutes
+- ✅ **Free credits** - $200 credit for new users
+- ✅ **Better support** - More responsive for small users
+
+**EC2 Advantages:**
+- ✅ **AWS ecosystem** - If you use other AWS services
+- ✅ **More instance types** - More options for scaling
+- ✅ **Enterprise features** - IAM, CloudWatch, etc.
+- ✅ **Free tier** - 12 months free (t2.micro)
+
+**Verdict:** **Start with Digital Ocean**, move to EC2 if you need AWS-specific features.
+
+---
+
+## Option 1: Digital Ocean Droplet (Recommended for Beginners)
+
+### **Best For:** Starting out, single strategy, learning, most traders
+
+**Pros:**
+- ✅ Simplest setup (5 minutes)
+- ✅ Beginner-friendly interface
+- ✅ Predictable pricing
+- ✅ Excellent documentation
+- ✅ $200 free credit for new users
+- ✅ Low cost ($6/month)
+
+**Cons:**
+- ❌ Less enterprise features than AWS
+- ❌ Fewer instance types
+
+### Setup Steps:
+
+#### 1. Create Droplet
+
+1. Go to [digitalocean.com](https://www.digitalocean.com)
+2. Sign up (get $200 free credit!)
+3. Click "Create" → "Droplets"
+4. Choose:
+   - **Image:** Ubuntu 22.04 LTS
+   - **Plan:** Basic ($6/month - 1GB RAM, 1 vCPU)
+   - **Region:** Choose closest to you
+   - **Authentication:** SSH keys (recommended) or password
+5. Click "Create Droplet"
+
+#### 2. Connect to Droplet
+
+```bash
+# SSH into your droplet
+ssh root@your-droplet-ip
+
+# Or if you set up a user
+ssh your-username@your-droplet-ip
+```
+
+#### 3. Initial Setup
+
+```bash
+# Update system
+apt update && apt upgrade -y
+
+# Install Python and dependencies
+apt install -y python3.11 python3-pip git screen curl
+
+# Install Node.js (if using TypeScript)
+curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+apt install -y nodejs
+```
+
+#### 4. Deploy Your Bot
+
+```bash
+# Clone repository
+git clone https://github.com/wau-zz/poly-trading-bot.git
+cd poly-trading-bot
+
+# Install Python packages
+pip3 install -r requirements.txt
+
+# Install strategy-specific packages
+cd strategies/strategy_1_arbitrage/python
+pip3 install -r requirements.txt
+
+# Set up environment
+nano .env
+# Add your PolyMarket API keys
+```
+
+#### 5. Run with Screen (Keeps Running After Disconnect)
+
+```bash
+# Start screen session
+screen -S polymarket_bot
+
+# Run your bot
+python3 bot.py
+
+# Detach: Press Ctrl+A then D
+# Reattach: screen -r polymarket_bot
+```
+
+#### 6. Auto-Start on Boot (systemd)
+
+```bash
+# Create service file
+sudo nano /etc/systemd/system/polymarket-bot.service
+```
+
+```ini
+[Unit]
+Description=PolyMarket Trading Bot
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/poly-trading-bot/strategies/strategy_1_arbitrage/python
+Environment="PATH=/usr/bin:/usr/local/bin"
+EnvironmentFile=/root/poly-trading-bot/.env
+ExecStart=/usr/bin/python3 /root/poly-trading-bot/strategies/strategy_1_arbitrage/python/bot.py
+Restart=always
+RestartSec=10
+StandardOutput=append:/var/log/polymarket-bot.log
+StandardError=append:/var/log/polymarket-bot-error.log
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+# Enable and start
+sudo systemctl daemon-reload
+sudo systemctl enable polymarket-bot.service
+sudo systemctl start polymarket-bot.service
+
+# Check status
+sudo systemctl status polymarket-bot.service
+
+# View logs
+sudo journalctl -u polymarket-bot.service -f
+```
+
+### Digital Ocean with Docker
+
+```bash
+# Install Docker
+curl -fsSL https://get.docker.com -o get-docker.sh
+sh get-docker.sh
+
+# Install Docker Compose
+apt install -y docker-compose
+
+# Add user to docker group
+usermod -aG docker $USER
+# Log out and back in
+
+# Clone and run
+git clone https://github.com/wau-zz/poly-trading-bot.git
+cd poly-trading-bot/infrastructure/docker
+docker-compose up -d
+```
+
+### Cost Comparison: Digital Ocean vs EC2
+
+| Feature | Digital Ocean | EC2 |
+|---------|--------------|-----|
+| **Basic Plan** | $6/mo (1GB RAM) | $6/mo (t3.micro, 1GB RAM) |
+| **Setup Time** | 5 minutes | 10-15 minutes |
+| **Interface** | Simple, intuitive | Complex AWS console |
+| **Documentation** | Excellent, beginner-friendly | Comprehensive but complex |
+| **Free Credits** | $200 (new users) | 12 months free tier |
+| **Support** | Great for small users | Enterprise-focused |
+| **Scaling** | Easy vertical scaling | More options, more complex |
+
+**Winner for Beginners:** Digital Ocean 🏆
+
+---
+
+## Option 2: Direct EC2 Deployment
 
 ### **Best For:** Starting out, single strategy, learning
 
@@ -111,7 +298,7 @@ sudo journalctl -u polymarket-bot.service -f
 
 ---
 
-## Option 2: Docker on EC2 (Recommended)
+## Option 3: Docker on VPS (Digital Ocean or EC2)
 
 ### **Best For:** Multiple strategies, easy updates, production-ready
 
@@ -198,10 +385,10 @@ services:
       - ../../data/logs:/app/logs
 ```
 
-#### 3. Deploy to EC2
+#### 3. Deploy to VPS (Digital Ocean or EC2)
 
 ```bash
-# On EC2 instance
+# On your VPS (Digital Ocean Droplet or EC2 instance)
 sudo apt update
 sudo apt install docker.io docker-compose -y
 sudo usermod -aG docker ubuntu
@@ -370,41 +557,49 @@ def lambda_handler(event, context):
 
 ## Recommended Deployment Path
 
-### **Phase 1: Start Simple (Direct EC2)**
+### **Phase 1: Start Simple (Digital Ocean Droplet)**
 ```
-Week 1-2: Deploy directly to EC2
+Week 1-2: Deploy directly to Digital Ocean
 - Single strategy
 - Manual monitoring
 - Learn the system
+- Cost: $6/month
 ```
 
-### **Phase 2: Add Docker (Docker on EC2)**
+### **Phase 2: Add Docker (Docker on VPS)**
 ```
-Week 3-4: Containerize
+Week 3-4: Containerize on Digital Ocean
 - Multiple strategies
 - Easy updates
 - Better isolation
+- Cost: $6-12/month
 ```
 
-### **Phase 3: Scale Up (ECS Fargate)**
+### **Phase 3: Scale Up (ECS Fargate or Larger Droplet)**
 ```
-Month 2+: Move to ECS
-- Auto-scaling
+Month 2+: Move to ECS or upgrade Droplet
+- Auto-scaling (ECS) or vertical scaling (DO)
 - High availability
 - Production-ready
+- Cost: $10-30/month
 ```
 
 ---
 
 ## Cost Comparison
 
+### **Digital Ocean Droplet:**
+- Basic (1GB RAM): $6/month
+- Standard (2GB RAM): $12/month
+- **Total: $6-12/month** ⭐ Best value
+
 ### **EC2 Direct:**
 - t3.micro: $6/month
 - t3.small: $12/month
 - **Total: $6-12/month**
 
-### **Docker on EC2:**
-- Same as EC2 Direct
+### **Docker on VPS (DO or EC2):**
+- Same as direct deployment
 - **Total: $6-12/month**
 
 ### **ECS Fargate:**
@@ -423,24 +618,43 @@ Month 2+: Move to ECS
 
 ### **For Most Traders:**
 
-**Start:** Direct EC2 deployment
-- Simplest to set up
+**🏆 Start: Digital Ocean Droplet (Recommended)**
+- Simplest to set up (5 minutes)
+- Beginner-friendly interface
 - Easy to debug
 - Low cost ($6/month)
-- Learn the system
+- $200 free credit for new users
+- Best documentation
 
-**Then:** Move to Docker on EC2
+**Then:** Move to Docker on Digital Ocean
 - When you have 2+ strategies
 - Want easier updates
 - Still low cost ($6-12/month)
 
-**Later:** Consider ECS Fargate
+**Alternative:** Use EC2 if you:
+- Already use AWS services
+- Need AWS-specific features (IAM, CloudWatch)
+- Prefer AWS ecosystem
+
+**Later:** Consider ECS Fargate or upgrade Droplet
 - When you're making serious money
 - Need high availability
 - Want auto-scaling
 
-### **Quick Start Command:**
+### **Quick Start Commands:**
 
+#### Digital Ocean (Recommended):
+```bash
+# One-liner Digital Ocean setup (after SSH)
+sudo apt update && sudo apt install -y python3.11 python3-pip git screen && \
+git clone https://github.com/wau-zz/poly-trading-bot.git && \
+cd poly-trading-bot && pip3 install -r requirements.txt && \
+cd strategies/strategy_1_arbitrage/python && \
+pip3 install -r requirements.txt && \
+screen -S bot python3 bot.py
+```
+
+#### EC2 (Alternative):
 ```bash
 # One-liner EC2 setup (after SSH)
 sudo apt update && sudo apt install -y python3.11 python3-pip git screen && \
