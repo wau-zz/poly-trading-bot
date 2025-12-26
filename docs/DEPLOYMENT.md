@@ -17,6 +17,28 @@ This guide covers different deployment options for your PolyMarket trading bot, 
 
 ---
 
+## Strategy Compatibility Matrix
+
+| Strategy | Digital Ocean/EC2 | Docker | ECS Fargate | Lambda | Notes |
+|----------|------------------|--------|-------------|--------|-------|
+| **1. Arbitrage** | ✅ **Required** | ✅ | ✅ | ❌ **NO** | Needs 24/7 continuous monitoring |
+| **2. Pairs Trading** | ✅ | ✅ | ✅ | ⚠️ Partial | Can work with periodic checks |
+| **3. Probability Models** | ✅ | ✅ | ✅ | ✅ | Periodic updates work fine |
+| **4. Market Making** | ✅ **Required** | ✅ | ✅ | ❌ **NO** | Needs 24/7, WebSocket connections |
+| **5. Wallet Following** | ✅ | ✅ | ✅ | ⚠️ Partial | Real-time better, but periodic works |
+| **6. Structured Products** | ✅ | ✅ | ✅ | ⚠️ Partial | Periodic checks possible |
+| **7. Cross-Market Arbitrage** | ✅ | ✅ | ✅ | ❌ **NO** | Needs continuous monitoring |
+
+**Key:**
+- ✅ **Required** = Must use VPS/container (not Lambda)
+- ✅ = Works well
+- ⚠️ Partial = Works but not optimal
+- ❌ **NO** = Cannot work (timeout/connection limits)
+
+**Bottom Line:** Strategies 1 and 4 **MUST** use VPS/container deployment (Digital Ocean, EC2, Docker, ECS). Lambda will NOT work.
+
+---
+
 ## 🏆 Recommended: Digital Ocean (Best for Most Traders)
 
 ### **Why Digital Ocean Over EC2?**
@@ -494,7 +516,37 @@ aws ecs create-service \
 
 ## Option 4: AWS Lambda (Serverless)
 
+### **⚠️ NOT Suitable For: Strategy 1 (Arbitrage) or Strategy 4 (Market Making)**
+
+**Why Lambda is BAD for these strategies:**
+- ❌ **15-minute timeout limit** - Can't run continuously
+- ❌ **Cold starts** - 1-5 second delay (too slow for arbitrage)
+- ❌ **No persistent connections** - Can't maintain WebSocket connections
+- ❌ **Event-driven only** - Can't monitor markets 24/7
+- ❌ **No state persistence** - Can't track positions between invocations
+
+**Strategy 1 (Arbitrage) needs:**
+- ✅ Continuous 24/7 monitoring
+- ✅ Sub-second response time
+- ✅ Immediate execution when opportunity appears
+- ✅ Persistent WebSocket connections
+
+**Strategy 4 (Market Making) needs:**
+- ✅ Continuous 24/7 operation
+- ✅ Update orders every 5-10 seconds
+- ✅ Maintain WebSocket connections
+- ✅ Respond to fills immediately
+
+**❌ Lambda CANNOT do any of these!**
+
 ### **Best For:** Event-driven, low-frequency trading, cost optimization
+
+**Suitable for:**
+- ✅ Strategy 3: Probability Models (periodic model updates)
+- ✅ Strategy 5: Wallet Following (periodic wallet scans)
+- ✅ Strategy 6: Structured Products (periodic spread checks)
+- ✅ Data collection tasks
+- ✅ Scheduled reports
 
 **Pros:**
 - ✅ Pay per execution (very cheap)
@@ -504,23 +556,28 @@ aws ecs create-service \
 **Cons:**
 - ❌ 15-minute timeout limit
 - ❌ Not ideal for continuous monitoring
-- ❌ Cold starts
+- ❌ Cold starts (1-5 seconds)
+- ❌ Cannot maintain persistent connections
 
-### Use Case:
+### Use Case (Only for Non-Continuous Strategies):
 
 ```python
 # For strategies that run periodically, not continuously
-# Example: Check for arbitrage every 5 minutes
+# Example: Update probability models every hour
 
 import json
 import boto3
 
 def lambda_handler(event, context):
-    # Run arbitrage scan
-    opportunities = scan_for_arbitrage()
+    # Run periodic model update
+    update_probability_models()
     
+    # Check for high-confidence opportunities
+    opportunities = find_high_confidence_trades()
+    
+    # Queue trades for execution (via SQS or direct API call)
     for opp in opportunities:
-        execute_arbitrage(opp)
+        queue_trade(opp)
     
     return {
         'statusCode': 200,
@@ -529,8 +586,9 @@ def lambda_handler(event, context):
 ```
 
 **Trigger with EventBridge (CloudWatch Events):**
-- Run every 5 minutes
-- Cost: ~$0.20/month for 8,640 executions
+- Run every hour or daily
+- Cost: ~$0.20/month for periodic checks
+- **NOT suitable for real-time trading**
 
 ---
 
@@ -640,6 +698,8 @@ Month 2+: Move to ECS or upgrade Droplet
 - When you're making serious money
 - Need high availability
 - Want auto-scaling
+
+**⚠️ Important:** If you're running **Strategy 1 (Arbitrage)** or **Strategy 4 (Market Making)**, you **MUST** use VPS/container deployment (Digital Ocean, EC2, Docker, or ECS). Lambda will NOT work due to timeout limits and inability to maintain persistent connections.
 
 ### **Quick Start Commands:**
 
