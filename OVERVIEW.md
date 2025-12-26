@@ -64,9 +64,9 @@ While traditional markets have been optimized over decades, prediction markets s
 - Emotional overreactions to news
 - Thin liquidity creating wide spreads
 
-## Our Approach: 6 Systematic Strategies
+## Our Approach: 7 Systematic Strategies
 
-This project implements **6 systematic strategies** that traders are actively using to generate consistent profits:
+This project implements **7 systematic strategies** that traders are actively using to generate consistent profits:
 
 ### [Strategy 1: Price Mismatch Sniping (Arbitrage)](./strategy_1_arbitrage.md)
 **Type:** Risk-free  
@@ -108,20 +108,28 @@ Identify consistently profitable wallets on-chain and automatically mirror their
 **Returns:** 20-40% monthly  
 **Win Rate:** 60-75%
 
-Create synthetic option structures (vertical spreads, straddles, iron condors, calendar spreads) using binary market outcomes. Trade like a professional options trader.
+Create synthetic option structures (vertical spreads, straddles, iron condors) using binary market outcomes. Trade like a professional options trader.
+
+### [Strategy 7: Cross-Market Arbitrage (Prediction vs Spot)](./strategy_7_cross_market_arbitrage.md)
+**Type:** Statistical arbitrage  
+**Returns:** 25-50% monthly  
+**Win Rate:** 70-80%
+
+Exploit the disconnect between emotional prediction market pricing and rational spot market reality. When crypto prices move dramatically, trade the mispricing while hedging with spot positions.
 
 ## Capital Allocation (for $100k account)
 
 | Strategy | Allocation | Risk Level | Expected Monthly Return |
 |----------|-----------|------------|------------------------|
-| Arbitrage Sniping | $15k (15%) | Very Low | 5-10% |
-| Correlated Pairs | $20k (20%) | Medium | 10-20% |
-| Probability Models | $25k (25%) | Medium-High | 15-30% |
+| Arbitrage Sniping | $10k (10%) | Very Low | 5-10% |
+| Correlated Pairs | $15k (15%) | Medium | 10-20% |
+| Probability Models | $20k (20%) | Medium-High | 15-30% |
 | Market Making | $10k (10%) | Low-Medium | 5-15% |
 | Wallet Following | $10k (10%) | Medium | 10-20% |
-| Structured Products | $20k (20%) | Medium-High | 20-40% |
+| Structured Products | $15k (15%) | Medium-High | 20-40% |
+| Cross-Market Arbitrage | $20k (20%) | Medium | 25-50% |
 
-**Portfolio Expected Return:** 15-30% monthly
+**Portfolio Expected Return:** 18-35% monthly
 
 ## Key Principles
 

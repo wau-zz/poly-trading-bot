@@ -453,6 +453,6 @@ Anonymous trader reports from Twitter/Discord:
 
 ---
 
-*This is Strategy 1 of 6 in the PolyMarket Trading Bot series*  
+*This is Strategy 1 of 7 in the PolyMarket Trading Bot series*  
 *Last Updated: December 25, 2025*
 

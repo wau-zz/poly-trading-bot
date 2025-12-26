@@ -797,10 +797,10 @@ This means you can create spread-like structures, but they behave differently fr
 
 ---
 
-**[← Previous: Wallet Following](./strategy_5_wallet_following.md)** | **[Back to Overview](./OVERVIEW.md)**
+**[← Previous: Wallet Following](./strategy_5_wallet_following.md)** | **[Next: Cross-Market Arbitrage →](./strategy_7_cross_market_arbitrage.md)**
 
 ---
 
-*This is Strategy 6 of 6 in the PolyMarket Trading Bot series*  
+*This is Strategy 6 of 7 in the PolyMarket Trading Bot series*  
 *Last Updated: December 25, 2025*
 

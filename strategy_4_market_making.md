@@ -505,6 +505,6 @@ def analyze_order_book(market_id):
 
 ---
 
-*This is Strategy 4 of 6 in the PolyMarket Trading Bot series*  
+*This is Strategy 4 of 7 in the PolyMarket Trading Bot series*  
 *Last Updated: December 25, 2025*
 
