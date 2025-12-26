@@ -93,24 +93,69 @@ class PolyMarketClient:
             
             # Filter active markets if requested
             if active and markets:
-                # Filter for markets that are accepting orders
-                # A market is "active" for trading if it's accepting orders
+                # Filter for markets that are accepting orders and not expired
+                # A market is "active" for trading if it's accepting orders and not past end date
                 filtered = []
+                from datetime import datetime, timezone
+                current_date = datetime.now(timezone.utc)
+                
                 for m in markets:
                     if isinstance(m, dict):
                         # Include markets that are:
                         # 1. Not archived
                         # 2. Accepting orders (or active flag is true)
+                        # 3. Not expired (end_date is in the future or None)
                         is_archived = m.get('archived', False)
                         accepting_orders = m.get('accepting_orders', False)
                         is_active = m.get('active', False)
                         
-                        # Market is tradeable if not archived and (accepting orders or active)
-                        if not is_archived and (accepting_orders or is_active):
+                        # Check if expired
+                        end_date_str = m.get('end_date_iso')
+                        is_expired = False
+                        if end_date_str:
+                            try:
+                                # Parse ISO format date (handles both Z and +00:00)
+                                if end_date_str.endswith('Z'):
+                                    end_date = datetime.fromisoformat(end_date_str.replace('Z', '+00:00'))
+                                else:
+                                    end_date = datetime.fromisoformat(end_date_str)
+                                
+                                # Ensure both are timezone-aware for comparison
+                                if end_date.tzinfo is None:
+                                    end_date = end_date.replace(tzinfo=timezone.utc)
+                                
+                                is_expired = end_date < current_date
+                            except (ValueError, AttributeError, TypeError):
+                                # If we can't parse the date, don't filter it out
+                                pass
+                        
+                        # Also check if market is too old (more than 1 year old) even without end date
+                        # This catches markets that are clearly expired but don't have end_date set
+                        from datetime import timedelta
+                        created_str = m.get('created_at') or m.get('createdAt')
+                        if not is_expired and created_str:
+                            try:
+                                if created_str.endswith('Z'):
+                                    created_date = datetime.fromisoformat(created_str.replace('Z', '+00:00'))
+                                else:
+                                    created_date = datetime.fromisoformat(created_str)
+                                
+                                if created_date.tzinfo is None:
+                                    created_date = created_date.replace(tzinfo=timezone.utc)
+                                
+                                # If market is more than 1 year old, consider it expired
+                                one_year_ago = current_date - timedelta(days=365)
+                                if created_date < one_year_ago:
+                                    is_expired = True
+                            except (ValueError, AttributeError, TypeError):
+                                pass
+                        
+                        # Market is tradeable if not archived, not expired, and (accepting orders or active)
+                        if not is_archived and not is_expired and (accepting_orders or is_active):
                             filtered.append(m)
                 
                 markets = filtered
-                logger.debug(f"Filtered to {len(markets)} tradeable markets")
+                logger.debug(f"Filtered to {len(markets)} active, non-expired tradeable markets")
             
             return markets
         except Exception as e:
