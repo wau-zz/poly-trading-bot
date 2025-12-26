@@ -20,13 +20,14 @@ class PolyMarketClient:
     
     def __init__(self):
         """Initialize PolyMarket client with API credentials"""
-        api_key = os.getenv("POLYMARKET_API_KEY")
-        api_secret = os.getenv("POLYMARKET_API_SECRET")
-        passphrase = os.getenv("POLYMARKET_PASSPHRASE", "")
+        # Support both naming conventions
+        api_key = os.getenv("POLYMARKET_API_KEY") or os.getenv("apiKey")
+        api_secret = os.getenv("POLYMARKET_API_SECRET") or os.getenv("secret")
+        passphrase = os.getenv("POLYMARKET_PASSPHRASE") or os.getenv("passphrase", "")
         
         if not api_key or not api_secret:
             raise ValueError(
-                "POLYMARKET_API_KEY and POLYMARKET_API_SECRET must be set in environment"
+                "API credentials must be set. Use POLYMARKET_API_KEY/POLYMARKET_API_SECRET or apiKey/secret"
             )
         
         self.client = ClobClient(
