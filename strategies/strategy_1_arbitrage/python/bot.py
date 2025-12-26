@@ -13,7 +13,11 @@ from datetime import datetime
 from typing import List, Dict, Optional
 
 # Add shared modules to path
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../../..', 'shared', 'python'))
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.abspath(os.path.join(current_dir, '..', '..', '..'))
+shared_python_path = os.path.join(project_root, 'shared', 'python')
+if os.path.exists(shared_python_path) and shared_python_path not in sys.path:
+    sys.path.insert(0, shared_python_path)
 
 from dotenv import load_dotenv
 from polymarket_client import PolyMarketClient
@@ -28,8 +32,9 @@ try:
 except ImportError:
     PAPER_TRADING_AVAILABLE = False
 
-# Load environment variables
-load_dotenv()
+# Load environment variables from project root
+env_path = os.path.join(project_root, '.env')
+load_dotenv(dotenv_path=env_path)
 
 # Setup logging
 setup_logging(
