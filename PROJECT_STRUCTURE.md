@@ -172,6 +172,76 @@ poly-trading-bot/
 
 ---
 
+## ⚠️ Important: Language Choice
+
+**You do NOT need to implement both Python and TypeScript!**
+
+The structure above shows both languages as **options**, not requirements. Here's how to choose:
+
+### **Choose ONE Language Per Strategy:**
+
+#### **Python (Recommended for Most Strategies)**
+- ✅ Easier to learn and debug
+- ✅ Better for data analysis and ML
+- ✅ More libraries available
+- ✅ Better for Strategy 2, 3, 5, 6, 7
+
+**Example Structure:**
+```
+strategies/strategy_1_arbitrage/
+├── python/
+│   ├── bot.py
+│   ├── detector.py
+│   └── requirements.txt
+└── README.md
+```
+
+#### **TypeScript (Recommended for Speed-Critical)**
+- ✅ Faster execution
+- ✅ Better for real-time WebSocket handling
+- ✅ Lower latency
+- ✅ Better for Strategy 1, 4 (if speed is critical)
+
+**Example Structure:**
+```
+strategies/strategy_1_arbitrage/
+├── typescript/
+│   ├── src/
+│   │   ├── bot.ts
+│   │   └── detector.ts
+│   └── package.json
+└── README.md
+```
+
+#### **Both Languages (Optional)**
+- Only if you want to compare performance
+- Or if you're building a team with mixed skills
+- Or if you want Python for analysis, TypeScript for execution
+
+**Example Structure:**
+```
+strategies/strategy_1_arbitrage/
+├── python/          # For analysis/backtesting
+├── typescript/      # For production execution
+└── README.md
+```
+
+### **Recommendation by Strategy:**
+
+| Strategy | Recommended Language | Why |
+|----------|---------------------|-----|
+| **1. Arbitrage** | **TypeScript** (or Python) | Speed matters, but Python works too |
+| **2. Pairs Trading** | **Python** | Statistical analysis tools |
+| **3. Probability Models** | **Python** | ML libraries essential |
+| **4. Market Making** | **TypeScript** (or Python) | High frequency, but Python OK |
+| **5. Wallet Following** | **Python** | Data processing |
+| **6. Structured Products** | **Python** | Complex calculations |
+| **7. Cross-Market Arbitrage** | **Python** | ML/data analysis |
+
+**Bottom Line:** Start with **Python** for all strategies. Only switch to TypeScript if you find speed is a bottleneck.
+
+---
+
 ## Design Principles
 
 ### 1. **Separation of Concerns**
@@ -180,9 +250,11 @@ poly-trading-bot/
 - **Documentation** in `docs/` - separate from implementation
 
 ### 2. **Language Flexibility**
-- Each strategy can have **both Python and TypeScript** implementations
-- Or choose **one language per strategy** based on needs
+- **Choose ONE language per strategy** (Python OR TypeScript)
+- Structure supports both, but you only need one
+- Can have **both languages** if you want to compare or have mixed team
 - Shared utilities available in both languages
+- **Recommendation:** Start with Python for all strategies
 
 ### 3. **Modularity**
 - Each strategy is **self-contained** with its own dependencies
@@ -434,14 +506,15 @@ kubectl apply -f infrastructure/kubernetes/
 
 ### **Start Simple:**
 
-1. **Phase 1:** Implement 1-2 strategies in Python
+1. **Phase 1:** Implement 1-2 strategies in **Python only**
    ```
    strategies/
    ├── strategy_1_arbitrage/
-   │   └── python/
+   │   └── python/          # Choose ONE language
    └── strategy_2_pairs_trading/
        └── python/
    ```
+   **Don't worry about TypeScript yet!** Python works fine for most strategies.
 
 2. **Phase 2:** Add shared utilities
    ```
@@ -451,22 +524,26 @@ kubectl apply -f infrastructure/kubernetes/
        └── utils.py
    ```
 
-3. **Phase 3:** Add more strategies as needed
+3. **Phase 3:** Add more strategies as needed (all in Python)
    ```
    strategies/
    ├── strategy_1_arbitrage/
+   │   └── python/
    ├── strategy_2_pairs_trading/
+   │   └── python/
    ├── strategy_3_probability_models/
+   │   └── python/
    └── ...
    ```
 
-4. **Phase 4:** Add TypeScript for speed-critical strategies
+4. **Phase 4:** (Optional) Add TypeScript ONLY if speed becomes a bottleneck
    ```
    strategies/
    ├── strategy_1_arbitrage/
-   │   ├── python/  # For analysis
-   │   └── typescript/  # For execution
+   │   ├── python/          # Keep for analysis/backtesting
+   │   └── typescript/       # Add for production if needed
    ```
+   **Only do this if:** You've proven Python works but need more speed for Strategy 1 or 4.
 
 ---
 
