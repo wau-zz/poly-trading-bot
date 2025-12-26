@@ -47,9 +47,42 @@ class PolyMarketClient:
         
         logger.info("PolyMarket client initialized")
     
+    def get_market_by_slug(self, slug: str) -> Optional[Dict]:
+        """
+        Get a specific market by its slug using Gamma API
+        
+        Args:
+            slug: Market slug (e.g., 'openai-1t-ipo-before-2027')
+            
+        Returns:
+            Market dictionary or None if not found
+        """
+        try:
+            import requests
+            url = f'https://gamma-api.polymarket.com/markets?slug={slug}'
+            
+            response = requests.get(url, timeout=10)
+            if response.status_code == 200:
+                markets = response.json()
+                if isinstance(markets, list) and len(markets) > 0:
+                    market = markets[0]
+                    # Normalize field names
+                    if 'conditionId' in market:
+                        market['condition_id'] = market.pop('conditionId')
+                    if 'slug' in market:
+                        market['market_slug'] = market['slug']
+                    if 'endDate' in market:
+                        market['end_date_iso'] = market['endDate']
+                    market['accepting_orders'] = market.get('active', False) and not market.get('closed', False)
+                    return market
+            return None
+        except Exception as e:
+            logger.error(f"Error fetching market by slug: {e}")
+            return None
+    
     def get_markets(self, active: bool = True) -> List[Dict]:
         """
-        Get all active markets using ClobClient
+        Get all active markets using Gamma API
         
         Args:
             active: Only return active markets
@@ -57,48 +90,53 @@ class PolyMarketClient:
         Returns:
             List of market dictionaries
             
-        Uses ClobClient.get_markets() with pagination to fetch all markets.
+        Uses Gamma API (https://gamma-api.polymarket.com/markets) which is the correct
+        endpoint for fetching market information. This API returns markets that exist
+        on the PolyMarket website, unlike the CLOB API which may miss some markets.
         """
         try:
-            # Use REST API with proper pagination (ClobClient.get_markets() has cursor issues)
-            # The REST API is more reliable for pagination
             import requests
             
-            all_markets = []
-            cursor = None
-            max_pages = int(os.getenv("MARKET_FETCH_MAX_PAGES", "10"))  # Configurable, default 10 pages = 10,000 markets
+            # Use Gamma API - the correct endpoint for market data
+            # Gamma API has a max limit of ~500 markets per request
+            # For more markets, we may need to use multiple requests or different parameters
+            limit = int(os.getenv("GAMMA_API_LIMIT", "500"))  # Max seems to be 500
+            url = f'https://gamma-api.polymarket.com/markets?limit={limit}'
             
-            logger.debug(f"Fetching markets using REST API with pagination (max {max_pages} pages)...")
+            logger.debug(f"Fetching markets using Gamma API (limit={limit})...")
             
-            for page in range(max_pages):
-                try:
-                    url = 'https://clob.polymarket.com/markets'
-                    if cursor:
-                        url += f'?next_cursor={cursor}'
-                    
-                    response = requests.get(url, timeout=10)
-                    if response.status_code == 200:
-                        data = response.json()
-                        page_markets = data.get('data', [])
-                        all_markets.extend(page_markets)
-                        
-                        cursor = data.get('next_cursor')
-                        if not cursor or not page_markets:
-                            break
-                        
-                        logger.debug(f"Fetched page {page + 1}: {len(page_markets)} markets (total: {len(all_markets)})")
-                    else:
-                        logger.warning(f"API returned status {response.status_code} on page {page + 1}")
-                        break
-                except Exception as e:
-                    logger.warning(f"Error fetching page {page + 1}: {e}")
-                    if page == 0:
-                        # If first page fails, return empty
-                        all_markets = []
-                    break
-            
-            markets = all_markets
-            logger.debug(f"Fetched {len(markets)} total markets from REST API (across {page + 1} pages)")
+            response = requests.get(url, timeout=15)
+            if response.status_code == 200:
+                markets = response.json()
+                
+                # Gamma API returns a list directly
+                if not isinstance(markets, list):
+                    logger.warning(f"Unexpected response type from Gamma API: {type(markets)}")
+                    markets = []
+                
+                # Normalize field names to match CLOB API format for compatibility
+                # Gamma API uses: conditionId, slug, endDate, closed, active
+                # CLOB API uses: condition_id, market_slug, end_date_iso, closed, active, accepting_orders
+                normalized_markets = []
+                for market in markets:
+                    normalized = market.copy()
+                    # Map Gamma API fields to CLOB API field names
+                    if 'conditionId' in normalized:
+                        normalized['condition_id'] = normalized.pop('conditionId')
+                    if 'slug' in normalized:
+                        normalized['market_slug'] = normalized['slug']
+                    if 'endDate' in normalized:
+                        normalized['end_date_iso'] = normalized['endDate']
+                    # Gamma API doesn't have accepting_orders, infer from active and closed
+                    normalized['accepting_orders'] = normalized.get('active', False) and not normalized.get('closed', False)
+                    normalized_markets.append(normalized)
+                
+                markets = normalized_markets
+                logger.debug(f"Fetched {len(markets)} markets from Gamma API")
+                logger.info(f"Note: Gamma API returns max 500 markets. Use get_market_by_slug() for specific markets.")
+            else:
+                logger.warning(f"Gamma API returned status {response.status_code}")
+                markets = []
             
             # Filter active markets if requested
             if active and markets:
