@@ -74,7 +74,7 @@ class PolyMarketClient:
             
             # Alternative: Use requests to call PolyMarket API directly
             import requests
-            response = requests.get('https://clob.polymarket.com/markets')
+            response = requests.get('https://clob.polymarket.com/markets', timeout=10)
             if response.status_code == 200:
                 data = response.json()
                 # Handle different response formats
@@ -85,14 +85,36 @@ class PolyMarketClient:
                     markets = data.get('markets', data.get('data', []))
                 else:
                     markets = []
+                
+                logger.debug(f"Fetched {len(markets)} total markets from API")
+            else:
+                logger.warning(f"API returned status {response.status_code}")
+                markets = []
             
             # Filter active markets if requested
             if active and markets:
-                markets = [m for m in markets if isinstance(m, dict) and m.get('active', True)]
+                # Filter for markets that are accepting orders
+                # A market is "active" for trading if it's accepting orders
+                filtered = []
+                for m in markets:
+                    if isinstance(m, dict):
+                        # Include markets that are:
+                        # 1. Not archived
+                        # 2. Accepting orders (or active flag is true)
+                        is_archived = m.get('archived', False)
+                        accepting_orders = m.get('accepting_orders', False)
+                        is_active = m.get('active', False)
+                        
+                        # Market is tradeable if not archived and (accepting orders or active)
+                        if not is_archived and (accepting_orders or is_active):
+                            filtered.append(m)
+                
+                markets = filtered
+                logger.debug(f"Filtered to {len(markets)} tradeable markets")
             
             return markets
         except Exception as e:
-            logger.error(f"Error fetching markets: {e}")
+            logger.error(f"Error fetching markets: {e}", exc_info=True)
             return []
     
     def get_market(self, market_id: str) -> Optional[Dict]:

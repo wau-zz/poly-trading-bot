@@ -61,10 +61,13 @@ class PaperTradingClient:
             try:
                 # Fetch real markets from API
                 markets = self.real_client.get_markets(active=active)
-                logger.debug(f"Fetched {len(markets)} markets from real API (paper trading mode)")
+                if markets:
+                    logger.debug(f"Fetched {len(markets)} markets from real API (paper trading mode)")
+                else:
+                    logger.warning(f"Fetched 0 markets from real API (active={active})")
                 return markets
             except Exception as e:
-                logger.error(f"Error fetching markets from real API: {e}")
+                logger.error(f"Error fetching markets from real API: {e}", exc_info=True)
                 return []
         else:
             logger.warning("No real API client available, returning empty market list")
