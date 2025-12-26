@@ -1,0 +1,14 @@
+# Strategy 1: Arbitrage Bot Dependencies
+
+# PolyMarket API
+py-clob-client>=1.0.0
+
+# HTTP requests (for market data)
+requests>=2.31.0
+
+# Environment variables
+python-dotenv>=1.0.0
+
+# Async support (included in Python 3.7+)
+# No additional package needed
+
