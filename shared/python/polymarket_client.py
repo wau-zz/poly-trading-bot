@@ -49,7 +49,7 @@ class PolyMarketClient:
     
     def get_markets(self, active: bool = True) -> List[Dict]:
         """
-        Get all active markets
+        Get all active markets using ClobClient
         
         Args:
             active: Only return active markets
@@ -57,39 +57,54 @@ class PolyMarketClient:
         Returns:
             List of market dictionaries
             
-        Note: You may need to adjust this method based on the actual
-        py-clob-client API. Check the official documentation:
-        https://github.com/Polymarket/py-clob-client
+        Uses ClobClient.get_markets() with pagination to fetch all markets.
         """
         try:
-            # TODO: Adjust this based on actual py-clob-client API
-            # The actual method might be different. Common options:
-            # - self.client.get_markets()
-            # - self.client.get_all_markets()
-            # - Use PolyMarket's GraphQL API directly
-            
-            # Placeholder implementation
-            # You'll need to check py-clob-client docs for the correct method
-            markets = []  # Placeholder
-            
-            # Alternative: Use requests to call PolyMarket API directly
-            import requests
-            response = requests.get('https://clob.polymarket.com/markets', timeout=10)
-            if response.status_code == 200:
-                data = response.json()
-                # Handle different response formats
-                if isinstance(data, list):
-                    markets = data
-                elif isinstance(data, dict):
-                    # If it's a dict, try common keys
-                    markets = data.get('markets', data.get('data', []))
-                else:
-                    markets = []
+            # Use ClobClient.get_markets() - the proper way to get markets
+            # This uses the official py-clob-client method instead of raw REST API
+            try:
+                logger.debug("Fetching markets using ClobClient.get_markets()...")
                 
-                logger.debug(f"Fetched {len(markets)} total markets from API")
-            else:
-                logger.warning(f"API returned status {response.status_code}")
-                markets = []
+                # Get first page of markets (1000 markets per page)
+                # Note: For now we get first page only. Pagination can be added later if needed.
+                response = self.client.get_markets()
+                
+                if isinstance(response, dict):
+                    # Response has pagination structure: {'data': [...], 'next_cursor': '...', 'limit': 1000, 'count': 1000}
+                    markets = response.get('data', [])
+                    next_cursor = response.get('next_cursor', '')
+                    total_count = response.get('count', len(markets))
+                    
+                    logger.debug(f"Fetched {len(markets)} markets from ClobClient (page 1 of potentially more)")
+                    if next_cursor:
+                        logger.debug(f"Note: More markets available (next_cursor exists). Currently showing first {len(markets)} markets.")
+                elif isinstance(response, list):
+                    # Response is a list (no pagination)
+                    markets = response
+                    logger.debug(f"Fetched {len(markets)} markets from ClobClient")
+                else:
+                    logger.warning(f"Unexpected response type from get_markets(): {type(response)}")
+                    markets = []
+                    
+            except Exception as e:
+                logger.warning(f"Error using ClobClient.get_markets(): {e}")
+                logger.debug("Falling back to raw REST API...")
+                
+                # Fallback to raw REST API if ClobClient method fails
+                import requests
+                response = requests.get('https://clob.polymarket.com/markets', timeout=10)
+                if response.status_code == 200:
+                    data = response.json()
+                    if isinstance(data, dict):
+                        markets = data.get('data', [])
+                    elif isinstance(data, list):
+                        markets = data
+                    else:
+                        markets = []
+                    logger.debug(f"Fetched {len(markets)} markets from raw REST API (fallback)")
+                else:
+                    logger.warning(f"REST API returned status {response.status_code}")
+                    markets = []
             
             # Filter active markets if requested
             if active and markets:
