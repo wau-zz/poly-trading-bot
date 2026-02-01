@@ -1,0 +1,26 @@
+# Strategy 5: Wallet Following (Wallet Basket Approach)
+# Python dependencies
+
+# Core dependencies (from shared)
+# These should be installed from project root requirements.txt
+# py-clob-client>=0.34.0
+# python-dotenv>=1.0.0
+# requests>=2.31.0
+
+# Blockchain interaction
+web3>=6.0.0  # For Polygon blockchain queries
+
+# Data processing
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Async support
+aiohttp>=3.9.0  # For async HTTP requests
+
+# GraphQL support (for subgraph queries)
+gql>=3.4.0  # GraphQL client (optional, requests also works)
+
+# Optional: For advanced analysis
+# scipy>=1.11.0  # Statistical analysis
+# scikit-learn>=1.3.0  # ML for copycat detection
+

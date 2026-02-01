@@ -139,3 +139,12 @@ touch logs/bot.log
 - **Search logs**: `grep "keyword" logs/bot.log`
 - **Last 50 lines**: `tail -50 logs/bot.log`
 
+
+
+
+
+
+
+
+
+

@@ -96,9 +96,23 @@ class ArbitrageExecutor:
             logger.info(f"  Shares: {shares:.2f}")
             logger.info(f"  Expected profit: {format_percentage(opportunity['profit_margin'])}")
             
-            # Place both orders simultaneously
+            # Get token_ids for YES and NO outcomes
+            condition_id = opportunity['market_id']
+            token_ids = self.client.get_token_ids(condition_id)
+            
+            if not token_ids:
+                logger.error(f"Could not get token_ids for condition_id {condition_id}")
+                return None
+            
+            yes_token_id = token_ids['yes_token_id']
+            no_token_id = token_ids['no_token_id']
+            
+            logger.debug(f"YES token_id: {yes_token_id}")
+            logger.debug(f"NO token_id: {no_token_id}")
+            
+            # Place both orders simultaneously using the correct token_ids
             yes_order = self.client.place_order(
-                market_id=opportunity['market_id'],
+                market_id=yes_token_id,  # Use actual YES token_id
                 side='BUY',
                 price=opportunity['yes_price'] * (1 + self.max_slippage_pct),  # Allow slippage
                 size=shares,
@@ -106,7 +120,7 @@ class ArbitrageExecutor:
             )
             
             no_order = self.client.place_order(
-                market_id=opportunity['market_id'],
+                market_id=no_token_id,  # Use actual NO token_id
                 side='BUY',
                 price=opportunity['no_price'] * (1 + self.max_slippage_pct),  # Allow slippage
                 size=shares,
@@ -125,8 +139,11 @@ class ArbitrageExecutor:
             # Record trade
             trade_result = {
                 'type': 'arbitrage',
-                'market_id': opportunity['market_id'],
+                'condition_id': condition_id,
+                'market_id': condition_id,  # Keep for backward compatibility
                 'market_description': opportunity['market_description'],
+                'yes_token_id': yes_token_id,
+                'no_token_id': no_token_id,
                 'yes_order_id': yes_order.get('id'),
                 'no_order_id': no_order.get('id'),
                 'yes_price': opportunity['yes_price'],

@@ -89,3 +89,12 @@ python3 bot.py
 
 **Note:** All documentation has been updated to use `python3` and `pip3` for macOS compatibility.
 
+
+
+
+
+
+
+
+
+

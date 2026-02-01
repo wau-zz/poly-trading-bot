@@ -6,6 +6,7 @@ import logging
 from typing import Optional, Dict, List
 import sys
 import os
+import json
 
 # Add shared modules to path
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -47,9 +48,28 @@ class ArbitrageDetector:
             Arbitrage opportunity dict or None
         """
         try:
-            # Get prices
+            # Get prices - handle both Gamma API format (outcomePrices) and CLOB format (yes_price/no_price)
             yes_price = market.get('yes_price', 0.0)
             no_price = market.get('no_price', 0.0)
+            
+            # If not found, try to extract from outcomePrices (Gamma API format)
+            if yes_price == 0.0 or no_price == 0.0:
+                outcome_prices = market.get('outcomePrices', None)
+                if outcome_prices:
+                    try:
+                        # Parse if it's a JSON string
+                        if isinstance(outcome_prices, str):
+                            prices = json.loads(outcome_prices)
+                        else:
+                            prices = outcome_prices
+                        
+                        # Extract YES and NO prices (first two outcomes)
+                        if isinstance(prices, list) and len(prices) >= 2:
+                            yes_price = float(prices[0]) if prices[0] else 0.0
+                            no_price = float(prices[1]) if prices[1] else 0.0
+                    except (ValueError, TypeError, IndexError) as e:
+                        logger.debug(f"Error parsing outcomePrices for market {market.get('id', 'unknown')}: {e}")
+                        return None
             
             if yes_price <= 0 or no_price <= 0:
                 return None
@@ -73,9 +93,13 @@ class ArbitrageDetector:
             shares_per_dollar = 1.0 / total_cost
             profit_per_dollar = profit_margin
             
+            # Ensure we have condition_id (needed to fetch token_ids later)
+            condition_id = market.get('condition_id') or market.get('id') or market.get('market_id')
+            
             return {
-                'market_id': market.get('id') or market.get('market_id'),
-                'market_description': market.get('description', 'Unknown'),
+                'market_id': condition_id,  # This is the condition_id, not token_id
+                'condition_id': condition_id,  # Explicitly store condition_id
+                'market_description': market.get('description') or market.get('question') or market.get('title', 'Unknown'),
                 'yes_price': yes_price,
                 'no_price': no_price,
                 'total_cost': total_cost,

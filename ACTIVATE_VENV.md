@@ -68,3 +68,12 @@ deactivate
 
 **Note:** Always activate the virtual environment before running the bot!
 
+
+
+
+
+
+
+
+
+
