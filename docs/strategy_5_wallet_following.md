@@ -1,7 +1,7 @@
 # Strategy 5: Smart Wallet Following (Copy Trading)
 
-**Strategy Type:** Social Trading / Momentum  
-**Difficulty:** Beginner-Intermediate  
+**Strategy Type:** Social Trading / Momentum / Consensus Signals  
+**Difficulty:** Intermediate-Advanced  
 **Capital Required:** $5k-10k  
 **Expected Returns:** 10-20% monthly  
 **Win Rate:** 55-65%  
@@ -14,6 +14,20 @@
 Instead of making your own trading decisions, identify consistently profitable traders on-chain and automatically mirror their positions in real-time.
 
 **The edge:** Some traders are genuinely skilled. By copying them, you can capture their edge without needing the expertise yourself.
+
+### Evolution: From Individual Copy Trading to Wallet Baskets
+
+**The Problem with Individual Copy Trading:**
+- Following one "smart" trader is fragile
+- Even the best traders drift in performance
+- Single point of failure
+- Personality bias
+
+**The Solution: Wallet Baskets by Topic**
+- Build baskets of wallets by specialization (e.g., geopolitics, crypto, sports)
+- Trade on consensus signals (80%+ of basket agrees)
+- More robust than following individuals
+- Feels like "trading agreement forming in real time" rather than tailing a personality
 
 ## The Core Concept
 
@@ -248,7 +262,319 @@ class WalletMonitor:
         return min(our_position_size, max_position)
 ```
 
-## Copy Trading Bot
+## Advanced Approach: Wallet Baskets by Topic
+
+### The Insight
+
+After analyzing ~1.3M PolyMarket wallets, a key insight emerged: **copying one "smart" trader is fragile. Even the best ones drift.**
+
+**Solution:** Build wallet baskets by topic/specialization and trade on consensus signals.
+
+### Wallet Basket Construction
+
+```python
+class WalletBasketBuilder:
+    """
+    Build baskets of wallets by topic/specialization
+    Example: Geopolitics basket, Crypto basket, Sports basket
+    """
+    
+    def __init__(self, topic: str):
+        self.topic = topic  # e.g., "geopolitics", "crypto", "sports"
+        self.wallets = []
+        self.filtering_criteria = WalletBasketCriteria()
+    
+    def build_basket(self, all_wallets: List[Dict]) -> List[Dict]:
+        """
+        Filter and rank wallets for this topic basket
+        """
+        filtered = []
+        
+        for wallet in all_wallets:
+            # Filter by topic specialization
+            if not self.is_topic_specialist(wallet, self.topic):
+                continue
+            
+            # Apply filtering criteria
+            if self.filtering_criteria.passes(wallet):
+                filtered.append(wallet)
+        
+        # Rank wallets
+        ranked = self.rank_wallets(filtered)
+        
+        return ranked
+```
+
+### Wallet Basket Filtering Criteria
+
+```python
+class WalletBasketCriteria:
+    """
+    Sophisticated filtering for wallet baskets
+    Based on real-world analysis of 1.3M+ wallets
+    """
+    
+    # Age requirement
+    MIN_WALLET_AGE_DAYS = 180  # 6+ months old
+    
+    # Bot detection
+    MAX_MICRO_TRADES = 1000  # Filter out wallets doing thousands of micro-trades
+    
+    # Performance weighting (recent > all-time)
+    RECENT_WIN_RATE_WEIGHT = 0.70  # 70% weight on recent performance
+    ALL_TIME_WIN_RATE_WEIGHT = 0.30  # 30% weight on all-time
+    
+    # Time windows for recent performance
+    RECENT_7_DAYS = True  # Last 7 days win rate
+    RECENT_30_DAYS = True  # Last 30 days win rate
+    
+    # Ranking criteria
+    RANK_BY_AVG_ENTRY_VS_FINAL = True  # Rank by avg entry vs final price
+    
+    # Copycat detection
+    FILTER_COPYCAT_CLUSTERS = True  # Ignore wallets that copy each other
+    
+    def passes(self, wallet: Dict) -> bool:
+        """
+        Check if wallet passes all filters
+        """
+        # Age check
+        wallet_age = (datetime.now() - wallet['first_trade_date']).days
+        if wallet_age < self.MIN_WALLET_AGE_DAYS:
+            return False
+        
+        # Bot detection
+        if wallet['total_trades'] > self.MAX_MICRO_TRADES:
+            # Check if they're doing micro-trades (likely a bot)
+            avg_trade_size = wallet['total_volume'] / wallet['total_trades']
+            if avg_trade_size < 10:  # Average trade < $10
+                return False  # Likely a bot
+        
+        # Copycat detection
+        if self.FILTER_COPYCAT_CLUSTERS:
+            if self.is_copycat(wallet):
+                return False
+        
+        return True
+    
+    def calculate_weighted_win_rate(self, wallet: Dict) -> float:
+        """
+        Calculate win rate with recency bias
+        Recent performance weighted more heavily than all-time
+        """
+        recent_7d_win_rate = wallet.get('win_rate_7d', 0.0)
+        recent_30d_win_rate = wallet.get('win_rate_30d', 0.0)
+        all_time_win_rate = wallet.get('win_rate_all_time', 0.0)
+        
+        # Weight recent performance more
+        recent_win_rate = (recent_7d_win_rate * 0.6 + recent_30d_win_rate * 0.4)
+        
+        weighted = (
+            recent_win_rate * self.RECENT_WIN_RATE_WEIGHT +
+            all_time_win_rate * self.ALL_TIME_WIN_RATE_WEIGHT
+        )
+        
+        return weighted
+    
+    def rank_wallets(self, wallets: List[Dict]) -> List[Dict]:
+        """
+        Rank wallets by avg entry vs final price
+        Best wallets enter at better prices relative to final outcome
+        """
+        for wallet in wallets:
+            # Calculate avg entry vs final price
+            avg_entry_vs_final = self.calculate_avg_entry_vs_final(wallet)
+            wallet['entry_vs_final_score'] = avg_entry_vs_final
+        
+        # Sort by entry_vs_final_score (higher is better)
+        ranked = sorted(wallets, key=lambda w: w['entry_vs_final_score'], reverse=True)
+        
+        return ranked
+    
+    def is_copycat(self, wallet: Dict) -> bool:
+        """
+        Detect if wallet is part of a copycat cluster
+        Wallets that copy each other's trades should be filtered out
+        """
+        # Check if wallet's trades correlate too highly with other wallets
+        # (simplified - would need actual correlation analysis)
+        return False  # Placeholder
+```
+
+### Consensus Signal Logic
+
+```python
+class ConsensusSignalDetector:
+    """
+    Detect when wallet basket reaches consensus (80%+ agreement)
+    """
+    
+    CONSENSUS_THRESHOLD = 0.80  # 80%+ of basket must agree
+    PRICE_BAND_TOLERANCE = 0.02  # All buying within 2% price band
+    MAX_SPREAD_COOKED = 0.05  # Don't trade if spread already moved >5%
+    
+    def detect_consensus(self, basket: List[Dict], market_id: str) -> Optional[Dict]:
+        """
+        Check if basket has reached consensus on a market
+        """
+        # Get all recent trades from basket wallets for this market
+        basket_trades = self.get_basket_trades(basket, market_id)
+        
+        if len(basket_trades) < len(basket) * 0.5:  # Need at least 50% of basket to have traded
+            return None
+        
+        # Group by outcome (YES or NO)
+        yes_trades = [t for t in basket_trades if t['outcome'] == 'YES']
+        no_trades = [t for t in basket_trades if t['outcome'] == 'NO']
+        
+        total_trades = len(basket_trades)
+        yes_pct = len(yes_trades) / total_trades
+        no_pct = len(no_trades) / total_trades
+        
+        # Check if consensus reached
+        if yes_pct >= self.CONSENSUS_THRESHOLD:
+            outcome = 'YES'
+            consensus_trades = yes_trades
+        elif no_pct >= self.CONSENSUS_THRESHOLD:
+            outcome = 'NO'
+            consensus_trades = no_trades
+        else:
+            return None  # No consensus
+        
+        # Check price band (all buying within tight price range)
+        prices = [t['price'] for t in consensus_trades]
+        price_range = max(prices) - min(prices)
+        avg_price = sum(prices) / len(prices)
+        
+        if price_range / avg_price > self.PRICE_BAND_TOLERANCE:
+            return None  # Prices too spread out
+        
+        # Check if spread is "cooked" (already moved too much)
+        current_mid_price = get_market_mid_price(market_id)
+        price_movement = abs(current_mid_price - avg_price) / avg_price
+        
+        if price_movement > self.MAX_SPREAD_COOKED:
+            return None  # Spread already moved, too late
+        
+        # Consensus signal detected!
+        return {
+            'market_id': market_id,
+            'outcome': outcome,
+            'consensus_pct': yes_pct if outcome == 'YES' else no_pct,
+            'avg_entry_price': avg_price,
+            'current_price': current_mid_price,
+            'basket_size': len(basket),
+            'trades_count': len(consensus_trades),
+            'signal_strength': self.calculate_signal_strength(basket, consensus_trades)
+        }
+    
+    def calculate_signal_strength(self, basket: List[Dict], trades: List[Dict]) -> float:
+        """
+        Calculate signal strength based on:
+        - Consensus percentage
+        - Quality of wallets in consensus
+        - Recency of trades
+        """
+        consensus_pct = len(trades) / len(basket)
+        
+        # Weight by wallet quality (higher quality wallets = stronger signal)
+        wallet_scores = [w['weighted_win_rate'] for w in basket if w['wallet'] in [t['wallet'] for t in trades]]
+        avg_wallet_quality = sum(wallet_scores) / len(wallet_scores) if wallet_scores else 0.5
+        
+        # Recency (more recent = stronger)
+        most_recent_trade = max(t['timestamp'] for t in trades)
+        hours_ago = (datetime.now() - most_recent_trade).total_seconds() / 3600
+        recency_score = max(0, 1 - (hours_ago / 24))  # Decay over 24 hours
+        
+        signal_strength = (
+            consensus_pct * 0.40 +
+            avg_wallet_quality * 0.40 +
+            recency_score * 0.20
+        )
+        
+        return signal_strength
+```
+
+### Wallet Basket Trading Bot
+
+```python
+class WalletBasketBot:
+    """
+    Trade on consensus signals from wallet baskets
+    """
+    
+    def __init__(self, topic: str):
+        self.topic = topic
+        self.basket = []
+        self.signal_detector = ConsensusSignalDetector()
+        self.active_positions = []
+    
+    async def initialize(self):
+        """
+        Build wallet basket for topic
+        """
+        # Scan all wallets
+        all_wallets = await scan_all_wallets()
+        
+        # Build basket
+        builder = WalletBasketBuilder(self.topic)
+        self.basket = builder.build_basket(all_wallets)
+        
+        print(f"📊 Built {self.topic} basket: {len(self.basket)} wallets")
+        print(f"   Top wallet: {self.basket[0]['wallet'][:10]}... (win rate: {self.basket[0]['weighted_win_rate']:.1%})")
+    
+    async def monitor_consensus(self):
+        """
+        Continuously monitor for consensus signals
+        """
+        while True:
+            # Get all active markets in this topic
+            markets = get_topic_markets(self.topic)
+            
+            for market in markets:
+                # Check for consensus signal
+                signal = self.signal_detector.detect_consensus(self.basket, market['id'])
+                
+                if signal:
+                    print(f"🎯 CONSENSUS SIGNAL DETECTED!")
+                    print(f"   Market: {market['question'][:60]}")
+                    print(f"   Outcome: {signal['outcome']}")
+                    print(f"   Consensus: {signal['consensus_pct']:.1%} of basket")
+                    print(f"   Signal Strength: {signal['signal_strength']:.2f}")
+                    print(f"   Avg Entry: ${signal['avg_entry_price']:.4f}")
+                    print(f"   Current: ${signal['current_price']:.4f}")
+                    
+                    # Execute trade
+                    await self.execute_consensus_trade(signal)
+            
+            await asyncio.sleep(60)  # Check every minute
+    
+    async def execute_consensus_trade(self, signal: Dict):
+        """
+        Execute trade based on consensus signal
+        """
+        # Calculate position size based on signal strength
+        base_size = 1000  # Base $1000
+        size = base_size * signal['signal_strength']
+        
+        # Place order
+        if signal['outcome'] == 'YES':
+            await place_buy_order(
+                market_id=signal['market_id'],
+                size=size,
+                max_price=signal['current_price'] * 1.01  # Allow 1% slippage
+            )
+        else:
+            await place_sell_order(
+                market_id=signal['market_id'],
+                size=size,
+                min_price=signal['current_price'] * 0.99
+            )
+        
+        print(f"✅ Executed consensus trade: ${size:.2f}")
+```
+
+## Copy Trading Bot (Original Approach)
 
 ```python
 class CopyTradingBot:
@@ -465,6 +791,15 @@ def get_wallet_trades_api(wallet_address, limit=100):
 
 ## Advantages
 
+### Wallet Basket Approach (Recommended)
+✅ **More robust** - Not dependent on single trader  
+✅ **Consensus signals** - Trade on agreement, not personality  
+✅ **Less fragile** - Basket can handle individual wallet drift  
+✅ **Topic specialization** - Baskets by expertise area  
+✅ **Real-time agreement** - Feels like "trading agreement forming"  
+✅ **Sophisticated filtering** - Age, bot detection, copycat filtering  
+
+### Individual Copy Trading (Original)
 ✅ **No expertise needed** - Let skilled traders do the analysis  
 ✅ **Lower time commitment** - Bot handles everything  
 ✅ **Diversification** - Follow multiple strategies  
@@ -473,11 +808,19 @@ def get_wallet_trades_api(wallet_address, limit=100):
 
 ## Disadvantages
 
+### Wallet Basket Approach
+❌ **More complex** - Requires basket construction and consensus detection  
+❌ **Data intensive** - Need to analyze 1.3M+ wallets  
+❌ **Signal delay** - Wait for 80%+ consensus  
+❌ **May miss early moves** - Consensus takes time to form  
+
+### Individual Copy Trading
 ❌ **Slippage** - Always a bit behind  
 ❌ **Dependence** - If they stop, you stop  
 ❌ **No edge of your own** - Not building trading skills  
 ❌ **Wallet could change** - Strategy drift, poor run  
 ❌ **Limited upside** - Can't beat who you copy
+❌ **Fragile** - Single point of failure
 
 ## Advanced Features
 

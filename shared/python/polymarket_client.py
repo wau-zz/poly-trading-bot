@@ -8,7 +8,7 @@ Check the official documentation: https://github.com/Polymarket/py-clob-client
 import os
 from typing import Dict, List, Optional
 from py_clob_client.client import ClobClient
-from py_clob_client.clob_types import ApiCreds
+from py_clob_client.clob_types import ApiCreds, OrderArgs
 from py_clob_client.constants import POLYGON
 import logging
 import requests
@@ -98,42 +98,69 @@ class PolyMarketClient:
             import requests
             
             # Use Gamma API - the correct endpoint for market data
-            # Gamma API has a max limit of ~500 markets per request
-            # For more markets, we may need to use multiple requests or different parameters
-            limit = int(os.getenv("GAMMA_API_LIMIT", "500"))  # Max seems to be 500
-            url = f'https://gamma-api.polymarket.com/markets?limit={limit}'
+            # Gamma API: Use closed=false to get only active markets
+            # Supports pagination with offset parameter to get all markets
+            limit = int(os.getenv("GAMMA_API_LIMIT", "500"))  # Max per page is 500
+            max_pages = int(os.getenv("GAMMA_API_MAX_PAGES", "10"))  # Default: fetch up to 10 pages (5000 markets)
             
-            logger.debug(f"Fetching markets using Gamma API (limit={limit})...")
+            all_markets = []
+            offset = 0
             
-            response = requests.get(url, timeout=15)
-            if response.status_code == 200:
-                markets = response.json()
+            logger.debug(f"Fetching markets using Gamma API with pagination (limit={limit}, max_pages={max_pages})...")
+            
+            for page in range(max_pages):
+                url = f'https://gamma-api.polymarket.com/markets?limit={limit}&closed=false&offset={offset}'
                 
-                # Gamma API returns a list directly
-                if not isinstance(markets, list):
-                    logger.warning(f"Unexpected response type from Gamma API: {type(markets)}")
-                    markets = []
-                
-                # Normalize field names to match CLOB API format for compatibility
-                # Gamma API uses: conditionId, slug, endDate, closed, active
-                # CLOB API uses: condition_id, market_slug, end_date_iso, closed, active, accepting_orders
-                normalized_markets = []
-                for market in markets:
-                    normalized = market.copy()
-                    # Map Gamma API fields to CLOB API field names
-                    if 'conditionId' in normalized:
-                        normalized['condition_id'] = normalized.pop('conditionId')
-                    if 'slug' in normalized:
-                        normalized['market_slug'] = normalized['slug']
-                    if 'endDate' in normalized:
-                        normalized['end_date_iso'] = normalized['endDate']
-                    # Gamma API doesn't have accepting_orders, infer from active and closed
+                response = requests.get(url, timeout=15)
+                if response.status_code == 200:
+                    markets = response.json()
+                    
+                    # Gamma API returns a list directly
+                    if not isinstance(markets, list):
+                        logger.warning(f"Unexpected response type from Gamma API: {type(markets)}")
+                        markets = []
+                    
+                    if len(markets) == 0:
+                        # No more markets available
+                        break
+                    
+                    all_markets.extend(markets)
+                    logger.debug(f"Fetched page {page + 1}: {len(markets)} markets (total: {len(all_markets)})")
+                    
+                    # If we got fewer than limit, we've reached the end
+                    if len(markets) < limit:
+                        break
+                    
+                    offset += limit
+                else:
+                    logger.warning(f"Gamma API returned status {response.status_code} on page {page + 1}")
+                    break
+            
+            # Normalize field names to match CLOB API format for compatibility
+            # Gamma API uses: conditionId, slug, endDate, closed, active, acceptingOrders
+            # CLOB API uses: condition_id, market_slug, end_date_iso, closed, active, accepting_orders
+            normalized_markets = []
+            for market in all_markets:
+                normalized = market.copy()
+                # Map Gamma API fields to CLOB API field names
+                if 'conditionId' in normalized:
+                    normalized['condition_id'] = normalized.pop('conditionId')
+                if 'slug' in normalized:
+                    normalized['market_slug'] = normalized['slug']
+                if 'endDate' in normalized:
+                    normalized['end_date_iso'] = normalized['endDate']
+                # Use acceptingOrders from API if available, otherwise infer from active and closed
+                if 'acceptingOrders' in normalized:
+                    normalized['accepting_orders'] = normalized.pop('acceptingOrders')
+                else:
+                    # Fallback: infer from active and closed
                     normalized['accepting_orders'] = normalized.get('active', False) and not normalized.get('closed', False)
-                    normalized_markets.append(normalized)
-                
-                markets = normalized_markets
-                logger.debug(f"Fetched {len(markets)} markets from Gamma API")
-                logger.info(f"Note: Gamma API returns max 500 markets. Use get_market_by_slug() for specific markets.")
+                normalized_markets.append(normalized)
+            
+            markets = normalized_markets
+            logger.debug(f"Fetched {len(markets)} total markets from Gamma API (across {page + 1} pages)")
+            if len(markets) >= max_pages * limit:
+                logger.info(f"Note: Fetched maximum pages ({max_pages}). There may be more markets available. Increase GAMMA_API_MAX_PAGES to fetch more.")
             else:
                 logger.warning(f"Gamma API returned status {response.status_code}")
                 markets = []
@@ -208,8 +235,9 @@ class PolyMarketClient:
                 
                 # Validate order books to ensure markets are actually tradeable
                 # This filters out stale markets that the API returns but are no longer valid
+                # Default to false since order book validation can filter out valid markets
                 validated_markets = []
-                validate_order_books = os.getenv("VALIDATE_ORDER_BOOKS", "true").lower() == "true"
+                validate_order_books = os.getenv("VALIDATE_ORDER_BOOKS", "false").lower() == "true"
                 
                 if validate_order_books and filtered:
                     logger.debug(f"Validating order books for {len(filtered)} markets...")
@@ -245,10 +273,10 @@ class PolyMarketClient:
     
     def get_market(self, market_id: str) -> Optional[Dict]:
         """
-        Get specific market by ID
+        Get specific market by ID (condition_id)
         
         Args:
-            market_id: Market identifier
+            market_id: Market identifier (condition_id)
             
         Returns:
             Market dictionary or None
@@ -257,6 +285,54 @@ class PolyMarketClient:
             return self.client.get_market(market_id)
         except Exception as e:
             logger.error(f"Error fetching market {market_id}: {e}")
+            return None
+    
+    def get_token_ids(self, condition_id: str) -> Optional[Dict[str, str]]:
+        """
+        Get token_ids for YES and NO outcomes from a condition_id
+        
+        Args:
+            condition_id: Market condition_id
+            
+        Returns:
+            Dict with 'yes_token_id' and 'no_token_id' or None if not found
+        """
+        try:
+            market = self.get_market(condition_id)
+            if not market:
+                return None
+            
+            tokens = market.get('tokens', [])
+            if not tokens:
+                logger.warning(f"No tokens found for condition_id {condition_id}")
+                return None
+            
+            # Extract token_ids for YES and NO outcomes
+            yes_token_id = None
+            no_token_id = None
+            
+            for token in tokens:
+                outcome = token.get('outcome', '').upper()
+                token_id = token.get('token_id')
+                
+                if outcome == 'YES' and token_id:
+                    yes_token_id = str(token_id)  # Convert to string
+                elif outcome == 'NO' and token_id:
+                    no_token_id = str(token_id)  # Convert to string
+            
+            if not yes_token_id or not no_token_id:
+                logger.warning(f"Could not find both YES and NO token_ids for condition_id {condition_id}")
+                logger.debug(f"Found tokens: {[t.get('outcome') for t in tokens]}")
+                return None
+            
+            return {
+                'yes_token_id': yes_token_id,
+                'no_token_id': no_token_id,
+                'condition_id': condition_id
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting token_ids for condition_id {condition_id}: {e}", exc_info=True)
             return None
     
     def get_market_prices(self, market_id: str) -> Optional[Dict]:
@@ -297,17 +373,17 @@ class PolyMarketClient:
         Place an order on PolyMarket
         
         Args:
-            market_id: Market identifier (token_id or conditional_id)
+            market_id: Token ID (condition_id for YES/NO shares)
             side: 'BUY' or 'SELL'
             price: Price per share (0.0 to 1.0)
             size: Number of shares
-            order_type: 'LIMIT' or 'MARKET'
+            order_type: 'LIMIT' or 'MARKET' (currently only LIMIT is supported)
             
         Returns:
-            Order response or None
+            Order response dict with order_id or None if failed
             
-        Note: You may need to adjust parameters based on actual py-clob-client API.
-        Check: https://github.com/Polymarket/py-clob-client
+        Note: For binary markets, you need separate token_ids for YES and NO outcomes.
+        The market_id should be the token_id for the specific outcome (YES or NO).
         """
         try:
             if side.upper() not in ['BUY', 'SELL']:
@@ -316,23 +392,28 @@ class PolyMarketClient:
             if not (0.0 <= price <= 1.0):
                 raise ValueError(f"Price must be between 0.0 and 1.0, got {price}")
             
-            # Place order using CLOB client
-            # TODO: Adjust parameters based on actual API
-            # Common parameter names: token_id, conditional_id, price, size, side
-            order = self.client.create_order(
-                token_id=market_id,  # Might be 'conditional_id' or different
+            # Create OrderArgs object (required by py-clob-client)
+            order_args = OrderArgs(
+                token_id=market_id,  # This should be the token_id for YES or NO outcome
                 price=price,
                 size=size,
-                side=side.upper(),
-                order_type=order_type
+                side=side.upper()
             )
             
-            logger.info(f"Order placed: {side} {size} shares @ ${price:.4f} on market {market_id}")
-            return order
+            # Place order using CLOB client
+            # create_order returns the order object, then we need to post it
+            order = self.client.create_order(order_args)
+            
+            # Post the order to the exchange
+            posted_order = self.client.post_order(order)
+            
+            logger.info(f"Order placed: {side} {size} shares @ ${price:.4f} on token {market_id}")
+            logger.debug(f"Order ID: {posted_order.get('id', 'N/A')}")
+            
+            return posted_order
             
         except Exception as e:
-            logger.error(f"Error placing order: {e}")
-            logger.error("Note: You may need to adjust create_order() parameters based on py-clob-client API")
+            logger.error(f"Error placing order: {e}", exc_info=True)
             return None
     
     def cancel_order(self, order_id: str) -> bool:
@@ -346,11 +427,12 @@ class PolyMarketClient:
             True if successful, False otherwise
         """
         try:
-            self.client.cancel_order(order_id)
+            # py-clob-client uses cancel() method
+            result = self.client.cancel(order_id)
             logger.info(f"Order {order_id} cancelled")
             return True
         except Exception as e:
-            logger.error(f"Error cancelling order {order_id}: {e}")
+            logger.error(f"Error cancelling order {order_id}: {e}", exc_info=True)
             return False
     
     def get_balance(self) -> float:
@@ -360,22 +442,24 @@ class PolyMarketClient:
         Returns:
             Balance in USDC
             
-        Note: You may need to adjust this method based on the actual
-        py-clob-client API. The method might be:
-        - self.client.get_balance()
-        - self.client.get_user_balance()
-        - Or use PolyMarket API directly
+        Note: py-clob-client doesn't have a direct get_balance() method.
+        We need to query the blockchain or use the PolyMarket API.
+        For now, this is a placeholder that needs implementation.
         """
         try:
-            # TODO: Adjust based on actual py-clob-client API
-            # Common options:
-            # balance = self.client.get_balance()
-            # balance = self.client.get_user_balance()
+            # py-clob-client doesn't have get_balance() method
+            # We need to query the collateral token balance from the blockchain
+            # or use PolyMarket's API directly
             
-            # Placeholder - you'll need to implement based on actual API
-            # For now, return a placeholder value
-            logger.warning("get_balance() not fully implemented - check py-clob-client docs")
-            return 1000.0  # Placeholder
+            # Option 1: Query blockchain directly using web3
+            # Option 2: Use PolyMarket API endpoint
+            # Option 3: Check if there's a method in py-clob-client we missed
+            
+            # For now, return a placeholder - this needs to be implemented
+            # based on your specific needs
+            logger.warning("get_balance() not fully implemented - needs blockchain query or API call")
+            logger.warning("You may need to use web3.py to query USDC balance from your wallet")
+            return 0.0  # Return 0 to be safe - prevents accidental trades without balance
             
         except Exception as e:
             logger.error(f"Error fetching balance: {e}")
